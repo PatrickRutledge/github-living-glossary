@@ -1,0 +1,43 @@
+name: Build, verify, and snapshot
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snapshot-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[test]'
+      - run: pytest -q
+      - name: Collect approved sources
+        if: github.event_name != 'pull_request' && vars.LIVE_COLLECTION == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/collect.py --output dist/collected
+      - name: Build snapshot
+        env:
+          LIVE: ${{ github.event_name != 'pull_request' && vars.LIVE_COLLECTION == 'true' }}
+        run: |
+          SOURCE=data/sample
+          if [ "$LIVE" = "true" ]; then SOURCE=dist/collected; fi
+          glossary build --source "$SOURCE" --output dist/snapshot
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parquet-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/snapshot/
+          retention-days: 30
