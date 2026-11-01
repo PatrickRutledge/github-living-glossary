@@ -8,7 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 SCHEMAS = {
     "observations": pa.schema([
         ("id", pa.string()), ("text", pa.string()), ("language", pa.string()),
@@ -21,11 +21,14 @@ SCHEMAS = {
         ("sense", pa.string()), ("definition", pa.string()),
         ("target_language", pa.string()), ("translation", pa.string()),
         ("status", pa.string()), ("observation_id", pa.string()),
+        ("reviewer_id", pa.string()), ("revision_of", pa.string()),
     ]),
     "annotations": pa.schema([
         ("id", pa.string()), ("observation_id", pa.string()),
         ("category", pa.string()), ("note", pa.string()),
         ("evidence", pa.string()), ("status", pa.string()),
+        ("reviewer_id", pa.string()), ("evidence_id", pa.string()),
+        ("revision_of", pa.string()),
     ]),
 }
 PROVENANCE = {"unknown", "known_automation", "declared_ai_assisted", "synthetic"}
@@ -34,6 +37,9 @@ CATEGORIES = {
     "ambiguity", "translation_error", "factual_error", "unsupported_claim",
     "argument_flaw", "correction", "usage",
 }
+# Sentinel for optional string-typed links; keeps the "all fields are nonempty
+# strings" schema contract while letting a field mean "not applicable".
+NONE_LINK = "none"
 
 
 def load_records(path: Path) -> list[dict]:
@@ -63,13 +69,63 @@ def validate(records: dict[str, list[dict]]) -> None:
             else:
                 if row["status"] not in STATUSES:
                     raise ValueError(f"{name}: invalid review status")
+                if row["status"] != "unreviewed" and row["reviewer_id"] == NONE_LINK:
+                    raise ValueError(f"{name}: reviewer_id is required once status is not unreviewed")
                 if name == "annotations" and row["category"] not in CATEGORIES:
                     raise ValueError("Invalid annotation category")
     observations = {row["id"] for row in records["observations"]}
     for name in ("glossary", "annotations"):
+        ids = {row["id"] for row in records[name]}
         for row in records[name]:
             if row["observation_id"] not in observations:
                 raise ValueError(f"{name}: missing observation {row['observation_id']}")
+            if row["revision_of"] != NONE_LINK:
+                if row["revision_of"] not in ids:
+                    raise ValueError(f"{name}: revision_of references unknown {name} id")
+                if row["revision_of"] == row["id"]:
+                    raise ValueError(f"{name}: revision_of cannot reference its own id")
+    for row in records["annotations"]:
+        if row["evidence_id"] != NONE_LINK and row["evidence_id"] not in observations:
+            raise ValueError("annotations: evidence_id must reference an observation or be 'none'")
+
+
+def _count_by(rows: list[dict], field: str) -> dict:
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row[field]] = counts.get(row[field], 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def dataset_card(records: dict[str, list[dict]], version: str) -> dict:
+    observations = records["observations"]
+    glossary = records["glossary"]
+    annotations = records["annotations"]
+    return {
+        "version": version,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "row_counts": {name: len(rows) for name, rows in records.items()},
+        "observations": {
+            "by_language": _count_by(observations, "language"),
+            "by_provenance": _count_by(observations, "provenance"),
+            "by_source_kind": _count_by(observations, "source_kind"),
+        },
+        "glossary": {
+            "by_status": _count_by(glossary, "status"),
+            "reviewed_without_reviewer": sum(
+                1 for row in glossary
+                if row["status"] != "unreviewed" and row["reviewer_id"] == NONE_LINK
+            ),
+        },
+        "annotations": {
+            "by_status": _count_by(annotations, "status"),
+            "by_category": _count_by(annotations, "category"),
+        },
+        "notes": (
+            "Counts describe this snapshot's rows only; they are not claims about a "
+            "full source repository or population. Review status reflects recorded "
+            "annotations, not an assessment of the underlying text's accuracy."
+        ),
+    }
 
 
 def build(source: Path, output: Path) -> Path:
@@ -100,6 +156,10 @@ def build(source: Path, output: Path) -> Path:
         })
     manifest_path = output / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    card_path = output / "dataset_card.json"
+    card_path.write_text(
+        json.dumps(dataset_card(records, output.name), indent=2) + "\n", encoding="utf-8"
+    )
     return manifest_path
 
 

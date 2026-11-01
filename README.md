@@ -53,6 +53,14 @@ are validated against the schemas in `src/living_glossary/data.py`. Snapshot man
 record row counts, schema version, and SHA-256 checksums. Use a new output directory for
 each version; querying verifies checksums before loading.
 
+`glossary` and `annotations` rows carry a `reviewer_id` (required once `status` moves past
+`unreviewed`; a self-reported string, not an authenticated identity) and an optional
+`revision_of` link to an earlier row in the same table, forming a human-readable revision
+chain. `annotations` rows also carry an optional `evidence_id` linking to the observation
+that substantiates the annotation. Corrections are new rows; a snapshot's rows are never
+edited in place. Each build also writes `dataset_card.json` next to `manifest.json`, with
+row counts and language/provenance/status/category breakdowns for that snapshot.
+
 Cloning provides tools and synthetic examples, not a large external corpus. Download
 a released Parquet snapshot and set `GLOSSARY_SNAPSHOT=/absolute/path/to/snapshot`
 before launching the UI. No real corpus has been released yet.

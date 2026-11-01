@@ -18,19 +18,22 @@ except for the GitHub collector; other platforms can supply the same JSONL schem
 - Unreviewed term-candidate mining (`glossary mine-terms`) over a snapshot's observations,
   with frequency, linked observation IDs, and the observed (possibly `und`) language.
 - Synthetic English/French glossary entries and a contextual argument-flaw example.
+- Per-snapshot `dataset_card.json` with row counts and language/provenance/status/category
+  breakdowns, generated alongside the checksummed manifest.
 - Tests covering joins, immutable snapshots, invalid references, prohibited queries,
-  checksum verification, UI output, collector behavior, and term mining.
+  checksum verification, UI output, collector behavior, term mining, and dataset cards.
 
 ## Schema contract
 
 All input fields are nonempty strings; timestamps must have explicit timezone offsets.
 Parquet observations use UTC timestamps. Exact columns are defined by PyArrow schemas.
+Schema version 2 adds reviewer, evidence, and revision-link columns (see below).
 
 | Table | Identity and content | Interpretation |
 | --- | --- | --- |
 | observations | id, text, language, observed_at, source_url, source_kind | provenance, permission |
-| glossary | id, term, language, sense, definition, observation_id | target_language, translation, status |
-| annotations | id, observation_id, category, note | evidence, status |
+| glossary | id, term, language, sense, definition, observation_id | target_language, translation, status, reviewer_id, revision_of |
+| annotations | id, observation_id, category, note | evidence, status, reviewer_id, evidence_id, revision_of |
 
 Language tags should use BCP 47; `und` means undetermined. v0.1 validates nonempty strings,
 not the full BCP 47 grammar. Provenance is `unknown`, `known_automation`,
@@ -40,6 +43,16 @@ Review status is `unreviewed`, `reviewed`, or `disputed`.
 Annotations preserve context and supply a reason. A proposed argument flaw does not
 establish a factual falsehood or reveal a writer's intelligence or mental state.
 Conflicting annotations are separate rows, never overwritten to create artificial consensus.
+
+`reviewer_id` (glossary and annotations) is a free-text identifier for who set the current
+`status`; it is required (not the literal string `none`) whenever `status` is not
+`unreviewed`. No identity verification or authentication is implemented, so this is an
+audit label, not a trust guarantee. `evidence_id` (annotations only) optionally links to
+the `observations` row that substantiates the `evidence` field, or is `none`. `revision_of`
+(glossary and annotations) optionally points at an earlier row ID in the same table to form
+a human-readable revision chain; a row cannot reference itself, and corrections are new
+rows, never in-place edits of a prior row. A snapshot's rows are immutable once built;
+revision chains describe prior contributions, not live mutation.
 
 ## Publication and storage
 
@@ -86,7 +99,9 @@ No live text is sent to an external model by this build.
    an English-only stopword filter), always `status: suggested`, and never written into
    `glossary.jsonl` automatically. Humans still approve translations and reasoning
    annotations; suggestions remain unreviewed until a person copies and completes them.
-4. Add reviewer/evidence identifiers, revision links, and corpus dataset cards.
+4. ~~Add reviewer/evidence identifiers, revision links, and corpus dataset cards~~
+   Implemented: see the schema contract above and `dataset_card.json` in each snapshot.
+   Reviewer IDs are self-reported strings, not authenticated accounts.
 5. Publish signed/versioned downloadable snapshots and optional Kaggle API synchronization.
 6. Partition larger tables by collection month; add selective-download tooling and only
    then assess a static DuckDB-Wasm browser UI.
