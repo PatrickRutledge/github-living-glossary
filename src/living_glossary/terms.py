@@ -15,15 +15,30 @@ import duckdb
 TOKEN = re.compile(r"[^\W\d_]{2,}", re.UNICODE)
 
 # Minimal, English-only function-word filter. Other languages are not filtered,
-# since a small ad hoc stopword list would be misleading about completeness.
+# since a small ad hoc stopword list would be misleading about completeness. This
+# collector never assigns a language other than `und` (undetermined) today, so the
+# filter is also applied to `und` observations; for a corpus that is actually mixed-
+# language this is a rough heuristic, not a real language identification step.
 STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be", "been",
     "to", "of", "in", "on", "for", "with", "this", "that", "it", "as", "by", "at",
     "from", "not", "will", "would", "can", "could", "should", "have", "has", "had",
     "if", "then", "than", "so", "you", "your", "we", "our", "they", "their",
+    "all", "any", "more", "new", "update", "updates", "updated", "version",
+    "after", "before", "start", "closing",
 }
 
-
+# GitHub/Markdown/CI boilerplate that recurs across unrelated observations (commit
+# links, Dependabot summaries, URL fragments) and is not glossary-worthy vocabulary
+# on its own.
+NOISE = {
+    "http", "https", "www", "com", "org", "github", "githubusercontent",
+    "pr", "prs", "issue", "issues", "comment", "comments", "commit", "commits",
+    "repo", "repos", "repository", "branch", "merge", "ci", "cd", "workflow",
+    "action", "actions", "summary", "details", "changelog", "release", "releases",
+    "dependabot", "npm", "yml", "yaml", "json", "md", "txt", "docs",
+    "br", "href", "li", "ul", "ol", "div", "span", "img", "src", "alt",
+}
 def tokenize(text: str) -> list[str]:
     return [token.lower() for token in TOKEN.findall(text)]
 
@@ -48,7 +63,9 @@ def mine_candidates(
     counts: dict[tuple[str, str], dict] = {}
     for observation_id, text, language in observations:
         for token in set(tokenize(text)):
-            if language == "en" and token in STOPWORDS:
+            if token in NOISE:
+                continue
+            if language in ("en", "und") and token in STOPWORDS:
                 continue
             if (token, language) in known:
                 continue

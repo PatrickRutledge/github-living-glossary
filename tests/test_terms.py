@@ -56,6 +56,27 @@ def test_mine_candidates_rejects_bad_frequency(snapshot):
             mine_candidates(connection, min_frequency=0)
 
 
+def test_mine_candidates_filters_und_stopwords_and_noise(snapshot):
+    with connect(snapshot) as connection:
+        connection.execute(
+            """
+            INSERT INTO observations
+                (id, text, language, observed_at, source_url, source_kind, provenance, permission)
+            VALUES
+                (?, ?, 'und', TIMESTAMP '2024-01-01', 'https://example.test', 'issue_or_pr',
+                 'unknown', 'public-repo')
+            """,
+            [
+                "obs-und-noise",
+                "Please update the docs after closing this pr, see https://github.com/example",
+            ],
+        )
+        candidates = mine_candidates(connection, min_frequency=1)
+        terms = {(c["term"], c["language"]) for c in candidates}
+        for noisy in ("the", "after", "closing", "https", "github", "pr", "docs"):
+            assert (noisy, "und") not in terms
+
+
 def test_write_candidates(tmp_path):
     output = tmp_path / "out" / "candidates.jsonl"
     rows = [{"id": "candidate:en:patch", "term": "patch", "language": "en",
