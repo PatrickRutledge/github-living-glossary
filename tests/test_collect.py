@@ -25,6 +25,13 @@ def test_sensitive_detection():
     assert collector.SENSITIVE.search("contact person@example.com")
     assert collector.SENSITIVE.search("-----BEGIN RSA PRIVATE KEY-----")
     assert not collector.SENSITIVE.search("Please merge this branch")
+    # Changelog/Dependabot version-range notation like "pkg@6.30.2...pkg@6.30.1" must
+    # not be mistaken for an email address (regression: real false positive found
+    # while dry-running collection against a live Dependabot PR body).
+    assert not collector.SENSITIVE.search(
+        "Bumps react-router from 6.30.1 to 6.30.2.\n"
+        "**Full Changelog**: react-router@6.30.1...react-router@6.30.2"
+    )
 
 
 def test_collect_preserves_unknown_and_bot(tmp_path, monkeypatch):

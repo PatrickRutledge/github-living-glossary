@@ -1,3 +1,9 @@
 {
-  "sources": []
+  "sources": [
+    {
+      "owner_self": true,
+      "since": "2025-04-01T00:00:00Z",
+      "permission": "Self-owned repositories (github.com/PatrickRutledge), collected under my own authority as account owner. Scope: issue and PR titles/bodies and issue comments, public and private."
+    }
+  ]
 }

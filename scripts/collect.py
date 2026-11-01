@@ -12,7 +12,10 @@ from urllib.request import Request, urlopen
 
 
 SENSITIVE = re.compile(
-    r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|"
+    # Domain must start with a letter so version-range notation like
+    # "package@6.30.2...package@6.30.1" (common in changelog/Dependabot PR bodies)
+    # is not mistaken for an email address.
+    r"[\w.+-]+@[A-Za-z][\w.-]*\.[A-Za-z]{2,}|"
     r"\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]+)|"
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----"
 )
