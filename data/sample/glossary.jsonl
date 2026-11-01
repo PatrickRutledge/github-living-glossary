@@ -1,0 +1,2 @@
+{"id":"term-1","term":"squash","language":"en","sense":"git.combine-commits","definition":"Combine multiple commits into one commit.","target_language":"fr","translation":"regrouper les commits","status":"unreviewed","observation_id":"sample-1"}
+{"id":"term-2","term":"fusion","language":"fr","sense":"git.merge","definition":"Combine changes from development histories.","target_language":"en","translation":"merge","status":"unreviewed","observation_id":"sample-3"}

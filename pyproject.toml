@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "github-living-glossary"
+version = "0.1.0"
+description = "A reproducible corpus, glossary, and research query tool"
+requires-python = ">=3.11"
+dependencies = [
+  "duckdb==1.5.6",
+  "pyarrow==23.0.1",
+  "streamlit==1.66.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.2.0"]
+
+[project.scripts]
+glossary = "living_glossary.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
