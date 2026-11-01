@@ -50,11 +50,14 @@ license is not blanket permission for its discussion text.
 
 ## Operational limits
 
-Collection is a full scan of current issue bodies and comments in a configured update
-window, capped at 100 pages per endpoint. It fails rather than silently truncating.
-No incremental checkpoint, deleted-text retention, or exact repeat of a live collection
-is claimed. Retry using a new output directory; stable source IDs deduplicate one build.
-Only versioned snapshots reproduce an observation set.
+Each collection run queries only issue bodies and comments updated since the source's
+last recorded checkpoint in `data/state/collection_state.json`, capped at 100 pages per
+endpoint; it fails rather than silently truncating. New, edited, and deleted items are
+recorded as append-only events in `data/state/history.jsonl`, but deleted text itself is
+not retained anywhere by this tool, and an exact repeat of a live collection is not
+claimed. Retry using a new output directory; stable source IDs deduplicate one build.
+Only versioned snapshots reproduce an observation set; the state/history files describe
+how a snapshot's contents changed over time, not a browsable archive of removed text.
 
 Local query connections disable external file/network access after loading the chosen
 tables and accept one SELECT statement. The UI is a trusted-user local research tool,
@@ -69,8 +72,10 @@ No live text is sent to an external model by this build.
 
 1. Agree on a permission-cleared pilot and a reviewed release/removal policy.
    See [PERMISSIONS.md](PERMISSIONS.md) for the current policy and process.
-2. Introduce incremental collection and append-only version records with explicit edit/
-   deletion handling and deletion propagation to distribution mirrors.
+2. ~~Introduce incremental collection and append-only version records with explicit edit/
+   deletion handling~~ Implemented: see `scripts/collect.py`'s per-source state in
+   `data/state/collection_state.json` and the append-only `data/state/history.jsonl` log.
+   Deletion propagation to external distribution mirrors (e.g. Kaggle) is still manual.
 3. Propose term candidates with frequency, contextual links, and language uncertainty.
    Humans approve translations and reasoning annotations; suggestions remain unreviewed.
 4. Add reviewer/evidence identifiers, revision links, and corpus dataset cards.

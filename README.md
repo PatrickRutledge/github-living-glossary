@@ -68,11 +68,16 @@ languages `und` (undetermined). These screens are incomplete and **do not establ
 redistribution**. Review before publication. No usernames or inferred human authorship are
 stored. Bot account metadata means automation, not proof of AI generation.
 
-It recollects a bounded window, not a historical archive: edits replace current text and
-deleted records disappear from future collections. Existing versioned snapshots must be
-retained separately. Review comments, commits, term mining, automated translation, and
-incremental history are not implemented. Collected snapshots initially have empty glossary
-and annotation tables; add reviewed JSONL contributions before building a research release.
+It recollects a bounded window per source, not a historical archive scan: each run only
+queries items updated since the source's last recorded state in
+`data/state/collection_state.json`. New items are appended, re-fetched items with changed
+text are marked `edited`, and items that drop out of the window and no longer exist upstream
+are marked `deleted` — all recorded as append-only events in `data/state/history.jsonl`.
+Deletion only removes an item from the next built snapshot; existing versioned snapshots
+must be retained separately and are not rewritten. Review comments, commits, term mining,
+and automated translation are not implemented. Collected snapshots initially have empty
+glossary and annotation tables; add reviewed JSONL contributions before building a research
+release.
 
 See [DESIGN.md](DESIGN.md) for the design, limits, and staged expansion.
 
