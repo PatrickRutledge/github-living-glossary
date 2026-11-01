@@ -68,6 +68,7 @@ No live text is sent to an external model by this build.
 ## Next milestones
 
 1. Agree on a permission-cleared pilot and a reviewed release/removal policy.
+   See [PERMISSIONS.md](PERMISSIONS.md) for the current policy and process.
 2. Introduce incremental collection and append-only version records with explicit edit/
    deletion handling and deletion propagation to distribution mirrors.
 3. Propose term candidates with frequency, contextual links, and language uncertainty.

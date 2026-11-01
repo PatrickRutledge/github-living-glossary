@@ -57,6 +57,7 @@ Live collection is disabled. To enable it:
 
 1. Obtain and document permission to redistribute issue bodies and comments, separately
    from the code license. Assess sensitive content and establish a removal process.
+   See [PERMISSIONS.md](PERMISSIONS.md) for the required steps and removal process.
 2. Add explicitly approved public repositories to `config/sources.json`, for example:
    `{"repo":"owner/repo","since":"2026-01-01T00:00:00Z","permission":"Permission document URL and scope"}`.
 3. Set the repository Actions variable `LIVE_COLLECTION` to `true`.
