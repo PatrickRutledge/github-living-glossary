@@ -46,6 +46,30 @@ separate file, never merged into `glossary.jsonl` automatically. A human reviews
 candidates, assigns a sense/definition/translation, and copies approved entries into a
 source's `glossary.jsonl` before the next `glossary build`.
 
+## Curating candidates into the glossary
+
+Two ways to turn a mined candidate into a real glossary entry; both write to a source
+directory's `glossary.jsonl`, never to a built snapshot (snapshots are read-only once
+built, see `data.connect`). Run `glossary build` afterwards to pick up the change, and
+`glossary render` to refresh the published page.
+
+- **Streamlit UI**: `streamlit run app.py`, open the "Curate candidates" tab. Point it at
+  a source directory and a candidates file from `mine-terms`, pick a candidate from the
+  dropdown, fill in a definition and your reviewer ID, and submit. This is the intended
+  way for a non-technical reviewer to do this without touching JSON by hand.
+- **CLI** (scriptable, e.g. for batch review):
+
+```sh
+glossary curate --source data/sample --term rebase --language und \
+  --sense git.rebase --definition "Reapply commits on top of another base tip." \
+  --reviewer-id yourname --observation-id <id-from-candidates.jsonl>
+```
+
+Both reject an `observation_id` that is not in the same source's `observations.jsonl`,
+so an entry can never cite evidence from a different corpus. Neither deduplicates
+against existing terms: deliberately adding a second sense, or a correction, is
+supported by setting `--revision-of` to an existing glossary row id.
+
 ## Publishing a browsable glossary page
 
 `glossary render --snapshot dist/sample --output docs/glossary.md` reads a snapshot's

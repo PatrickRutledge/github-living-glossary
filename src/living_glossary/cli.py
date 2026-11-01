@@ -29,6 +29,19 @@ def main():
     renderer.add_argument("--snapshot", type=Path, required=True)
     renderer.add_argument("--output", type=Path, required=True)
     renderer.add_argument("--title", default="Living Glossary")
+    curator = commands.add_parser("curate")
+    curator.add_argument("--source", type=Path, required=True,
+                         help="Source directory with observations.jsonl/glossary.jsonl, e.g. data/sample")
+    curator.add_argument("--term", required=True)
+    curator.add_argument("--language", required=True)
+    curator.add_argument("--sense", required=True)
+    curator.add_argument("--definition", required=True)
+    curator.add_argument("--reviewer-id", required=True)
+    curator.add_argument("--observation-id", required=True)
+    curator.add_argument("--target-language", default="none")
+    curator.add_argument("--translation", default="none")
+    curator.add_argument("--status", default="reviewed", choices=["unreviewed", "reviewed", "disputed"])
+    curator.add_argument("--revision-of", default="none")
     commands.add_parser("generate-keypair")
     signer = commands.add_parser("sign")
     signer.add_argument("--snapshot", type=Path, required=True)
@@ -72,6 +85,22 @@ def main():
             with connect(args.snapshot) as connection:
                 path = render(connection, args.output, title=args.title)
                 print(f"Wrote reviewed glossary page to {path}")
+        elif args.command == "curate":
+            from living_glossary.curate import append_glossary_entry
+            entry = append_glossary_entry(
+                args.source,
+                term=args.term,
+                language=args.language,
+                sense=args.sense,
+                definition=args.definition,
+                reviewer_id=args.reviewer_id,
+                observation_id=args.observation_id,
+                target_language=args.target_language,
+                translation=args.translation,
+                status=args.status,
+                revision_of=args.revision_of,
+            )
+            print(f"Appended glossary entry {entry['id']} to {args.source / 'glossary.jsonl'}")
         elif args.command == "generate-keypair":
             from living_glossary.signing import generate_keypair
             private_key, public_key = generate_keypair()
