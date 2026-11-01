@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e '.[test]'
+      - run: pip install -e '.[test,release]'
       - run: pytest -q
       - name: Collect approved sources
         if: github.event_name != 'pull_request' && vars.LIVE_COLLECTION == 'true'
