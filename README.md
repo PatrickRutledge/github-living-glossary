@@ -35,6 +35,17 @@ CSV exports preserve source text. Import spreadsheet columns as text: untrusted 
 can otherwise be interpreted as a formula. Corpus text is data, never instructions for
 an agent.
 
+## Term candidates
+
+`glossary mine-terms --snapshot dist/sample --output dist/candidates.jsonl` scans an
+existing snapshot's `observations` text and writes unreviewed term candidates: a term,
+its observed language (which may be `und`), a frequency count, and a bounded list of
+linked `observation_ids` for context. Terms already present in the snapshot's `glossary`
+table are skipped. Candidates always have `"status": "suggested"` and are written to a
+separate file, never merged into `glossary.jsonl` automatically. A human reviews
+candidates, assigns a sense/definition/translation, and copies approved entries into a
+source's `glossary.jsonl` before the next `glossary build`.
+
 ## Data and reproducibility
 
 Three linked Parquet tables: `observations`, `glossary`, and `annotations`. JSONL inputs

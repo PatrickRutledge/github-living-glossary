@@ -13,9 +13,13 @@ except for the GitHub collector; other platforms can supply the same JSONL schem
 - Three tables linked by stable observation IDs; original text is not rewritten by annotations.
 - Local Streamlit query UI, filters, SQL SELECT queries, limited preview, and CSV export.
 - Daily GitHub Actions workflow, synthetic defaults, and gated allowlisted public collection.
+- Incremental collection with per-source checkpoints and an append-only new/edited/deleted
+  history log (`data/state/`).
+- Unreviewed term-candidate mining (`glossary mine-terms`) over a snapshot's observations,
+  with frequency, linked observation IDs, and the observed (possibly `und`) language.
 - Synthetic English/French glossary entries and a contextual argument-flaw example.
 - Tests covering joins, immutable snapshots, invalid references, prohibited queries,
-  checksum verification, UI output, and collector behavior.
+  checksum verification, UI output, collector behavior, and term mining.
 
 ## Schema contract
 
@@ -76,8 +80,12 @@ No live text is sent to an external model by this build.
    deletion handling~~ Implemented: see `scripts/collect.py`'s per-source state in
    `data/state/collection_state.json` and the append-only `data/state/history.jsonl` log.
    Deletion propagation to external distribution mirrors (e.g. Kaggle) is still manual.
-3. Propose term candidates with frequency, contextual links, and language uncertainty.
-   Humans approve translations and reasoning annotations; suggestions remain unreviewed.
+3. ~~Propose term candidates with frequency, contextual links, and language uncertainty~~
+   Implemented: see `src/living_glossary/terms.py` and `glossary mine-terms`. Candidates
+   are tokenized surface forms only (no stemming/lemmatization, no multi-word phrases,
+   an English-only stopword filter), always `status: suggested`, and never written into
+   `glossary.jsonl` automatically. Humans still approve translations and reasoning
+   annotations; suggestions remain unreviewed until a person copies and completes them.
 4. Add reviewer/evidence identifiers, revision links, and corpus dataset cards.
 5. Publish signed/versioned downloadable snapshots and optional Kaggle API synchronization.
 6. Partition larger tables by collection month; add selective-download tooling and only
