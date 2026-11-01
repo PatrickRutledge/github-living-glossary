@@ -1,0 +1,80 @@
+name: Publish signed snapshot release
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, e.g. v1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[test,release]'
+      - run: pytest -q
+      - name: Determine snapshot source
+        id: source
+        env:
+          LIVE: ${{ vars.LIVE_COLLECTION == 'true' }}
+        run: |
+          if [ "$LIVE" = "true" ]; then
+            echo "path=dist/collected" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=data/sample" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Collect approved sources
+        if: vars.LIVE_COLLECTION == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/collect.py --output dist/collected
+      - name: Build snapshot
+        run: glossary build --source "${{ steps.source.outputs.path }}" --output dist/release
+      - name: Sign snapshot manifest
+        if: vars.GLOSSARY_PUBLIC_KEY != ''
+        env:
+          GLOSSARY_PRIVATE_KEY: ${{ secrets.GLOSSARY_PRIVATE_KEY }}
+        run: glossary sign --snapshot dist/release
+      - name: Verify signature
+        if: vars.GLOSSARY_PUBLIC_KEY != ''
+        env:
+          GLOSSARY_PUBLIC_KEY: ${{ vars.GLOSSARY_PUBLIC_KEY }}
+        run: glossary verify-signature --snapshot dist/release
+      - name: Archive snapshot
+        run: |
+          cd dist/release
+          tar -czf "../../snapshot-${GITHUB_REF_NAME}.tar.gz" .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: snapshot-${{ github.ref_name }}.tar.gz
+          generate_release_notes: true
+          body: |
+            Immutable snapshot for tag ${{ github.ref_name }}.
+            Verify with: `glossary verify-signature --snapshot <extracted-dir> --public-key <GLOSSARY_PUBLIC_KEY>`
+            if a public key was configured, or compare `manifest.json` SHA-256 checksums manually.
+            See DESIGN.md and PERMISSIONS.md for scope and limits; this is a code/sample-data
+            release unless `LIVE_COLLECTION` was enabled with a permission-cleared source.
+      - name: Kaggle sync (optional, requires secrets)
+        if: vars.KAGGLE_SYNC == 'true'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          pip install kaggle
+          mkdir -p dist/kaggle
+          cp dist/release/*.parquet dist/release/manifest.json dist/release/dataset_card.json dist/kaggle/
+          if [ -f dist/release/manifest.sig.json ]; then cp dist/release/manifest.sig.json dist/kaggle/; fi
+          kaggle datasets version -p dist/kaggle -m "Release ${{ github.ref_name }}" || \
+            echo "Kaggle dataset metadata not initialized; see https://github.com/Kaggle/kaggle-api for kaggle datasets init"

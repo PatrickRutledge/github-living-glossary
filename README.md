@@ -65,12 +65,40 @@ Cloning provides tools and synthetic examples, not a large external corpus. Down
 a released Parquet snapshot and set `GLOSSARY_SNAPSHOT=/absolute/path/to/snapshot`
 before launching the UI. No real corpus has been released yet.
 
+## Signed, versioned releases
+
+Pushing a tag like `v1` (or running the "Publish signed snapshot release" workflow
+manually) builds a snapshot and publishes it as a GitHub Release asset
+(`snapshot-<tag>.tar.gz`), which does not expire the way the 30-day build workflow
+artifacts do. If the repository Actions variable `GLOSSARY_PUBLIC_KEY` and secret
+`GLOSSARY_PRIVATE_KEY` are both configured, the release is signed with Ed25519 and the
+signature is verified in the same workflow run before publishing:
+
+```sh
+glossary generate-keypair                      # prints a private and public key; do this once
+glossary sign --snapshot dist/release            # writes manifest.sig.json
+glossary verify-signature --snapshot dist/release # checks it against the public key
+```
+
+A signature proves the release was produced by whoever holds the private key; it does
+not by itself establish collection permission or review status — see
+[PERMISSIONS.md](PERMISSIONS.md). Store the private key only as a repository secret,
+never committed. Losing it means future releases cannot be verified against past ones
+until a new keypair is generated and republished as the current public key.
+
+Setting the Actions variable `KAGGLE_SYNC` to `true`, together with `KAGGLE_USERNAME` and
+`KAGGLE_KEY` secrets, additionally pushes the signed snapshot files to an already
+`kaggle datasets init`-ed Kaggle dataset as an optional mirror. Kaggle sync is not a
+substitute for the GitHub Release; it is best-effort and skipped if dataset metadata was
+never initialized.
+
 ## GitHub Actions
 
 The workflow runs tests and builds a snapshot on pushes, PRs, manual dispatch, and daily
 at 04:23 UTC. Scheduled execution can be delayed and disabled after repository inactivity.
 Snapshots are workflow artifacts retained for 30 days, **not a permanent archive**.
-Download selected artifacts and preserve approved versions in releases or Kaggle.
+Use the signed release workflow above, or download selected artifacts and preserve
+approved versions in releases or Kaggle yourself.
 
 Live collection is disabled. To enable it:
 

@@ -20,8 +20,11 @@ except for the GitHub collector; other platforms can supply the same JSONL schem
 - Synthetic English/French glossary entries and a contextual argument-flaw example.
 - Per-snapshot `dataset_card.json` with row counts and language/provenance/status/category
   breakdowns, generated alongside the checksummed manifest.
+- Tag-triggered release workflow publishing immutable, optionally Ed25519-signed
+  snapshot archives as GitHub Releases, with gated best-effort Kaggle sync.
 - Tests covering joins, immutable snapshots, invalid references, prohibited queries,
-  checksum verification, UI output, collector behavior, term mining, and dataset cards.
+  checksum verification, UI output, collector behavior, term mining, dataset cards,
+  and manifest signing/verification.
 
 ## Schema contract
 
@@ -57,13 +60,17 @@ revision chains describe prior contributions, not live mutation.
 ## Publication and storage
 
 Git stores software, schemas, approved small glossary contributions, and sample data.
-Large Parquet files stay outside Git. Publish immutable reviewed snapshots with manifests.
+Large Parquet files stay outside Git. Publish immutable reviewed snapshots with manifests
+via tagged GitHub Releases (`.github/workflows/release.yml`), optionally Ed25519-signed.
 Kaggle is an optional distribution mirror, not a dependency for querying.
-Actions artifacts expire and must not be the only durable copy.
+Actions build-workflow artifacts expire and must not be the only durable copy; releases
+are the durable copy this project controls directly.
 
 Before public redistribution, document source permissions, redactions, sample coverage,
 known limitations, and a contact/removal procedure. A source's public visibility or code
-license is not blanket permission for its discussion text.
+license is not blanket permission for its discussion text. A valid manifest signature
+authenticates who produced a release, not that its content was permission-cleared or
+reviewed — those remain separate, manual steps (see PERMISSIONS.md).
 
 ## Operational limits
 
@@ -102,7 +109,13 @@ No live text is sent to an external model by this build.
 4. ~~Add reviewer/evidence identifiers, revision links, and corpus dataset cards~~
    Implemented: see the schema contract above and `dataset_card.json` in each snapshot.
    Reviewer IDs are self-reported strings, not authenticated accounts.
-5. Publish signed/versioned downloadable snapshots and optional Kaggle API synchronization.
+5. ~~Publish signed/versioned downloadable snapshots and optional Kaggle API
+   synchronization~~ Implemented: `.github/workflows/release.yml` builds a snapshot on a
+   pushed tag, optionally signs `manifest.json` with Ed25519
+   (`src/living_glossary/signing.py`, `glossary sign`/`verify-signature`), and publishes
+   it as a GitHub Release asset. Kaggle sync is gated behind the `KAGGLE_SYNC` variable
+   and is best-effort, not a guaranteed mirror. A valid signature authenticates "produced
+   by the key holder", not collection permission or review status.
 6. Partition larger tables by collection month; add selective-download tooling and only
    then assess a static DuckDB-Wasm browser UI.
 

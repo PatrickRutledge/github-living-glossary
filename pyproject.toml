@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 test = ["pytest==9.2.0"]
+release = ["cryptography==44.0.0"]
 
 [project.scripts]
 glossary = "living_glossary.cli:main"
