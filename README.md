@@ -65,6 +65,29 @@ Cloning provides tools and synthetic examples, not a large external corpus. Down
 a released Parquet snapshot and set `GLOSSARY_SNAPSHOT=/absolute/path/to/snapshot`
 before launching the UI. No real corpus has been released yet.
 
+## Partitioning and selective download
+
+For a larger corpus, `glossary build-partitioned --source data/sample --output dist/partitioned`
+groups records by each observation's month (`YYYY-MM` from `observed_at`) into one
+self-contained, checksummed snapshot directory per month, plus a top-level `index.json`
+listing every partition's row counts and file checksums. A glossary or annotation row is
+assigned to its *linked observation's* month, even if that differs from the row's own
+creation time, so a partition is always independently connectable and never splits a
+join across directories.
+
+A client can inspect `index.json` and fetch only the partition directories it needs, then
+merge them into one queryable snapshot:
+
+```sh
+glossary select-partitions --output dist/partitioned --months 2026-10 2026-11 \
+  --destination dist/selected
+glossary query --snapshot dist/selected --sql 'SELECT count(*) FROM observations' --csv dist/n.csv
+```
+
+`select-partitions` re-verifies each partition's checksums before merging. This tooling
+assumes already-reconciled input (see "It recollects a bounded window..." above); it does
+not itself handle cross-month edits or deletions.
+
 ## Signed, versioned releases
 
 Pushing a tag like `v1` (or running the "Publish signed snapshot release" workflow
@@ -74,7 +97,7 @@ artifacts do. If the repository Actions variable `GLOSSARY_PUBLIC_KEY` and secre
 `GLOSSARY_PRIVATE_KEY` are both configured, the release is signed with Ed25519 and the
 signature is verified in the same workflow run before publishing:
 
-```sh
+
 glossary generate-keypair                      # prints a private and public key; do this once
 glossary sign --snapshot dist/release            # writes manifest.sig.json
 glossary verify-signature --snapshot dist/release # checks it against the public key

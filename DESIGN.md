@@ -22,9 +22,13 @@ except for the GitHub collector; other platforms can supply the same JSONL schem
   breakdowns, generated alongside the checksummed manifest.
 - Tag-triggered release workflow publishing immutable, optionally Ed25519-signed
   snapshot archives as GitHub Releases, with gated best-effort Kaggle sync.
+- Month-based partitioning (`glossary build-partitioned`) producing one self-contained,
+  checksummed snapshot per observation month plus a top-level `index.json`, and
+  `glossary select-partitions` to merge only the chosen months into one queryable
+  snapshot without downloading the rest.
 - Tests covering joins, immutable snapshots, invalid references, prohibited queries,
   checksum verification, UI output, collector behavior, term mining, dataset cards,
-  and manifest signing/verification.
+  manifest signing/verification, and partitioning/selective download.
 
 ## Schema contract
 
@@ -116,8 +120,12 @@ No live text is sent to an external model by this build.
    it as a GitHub Release asset. Kaggle sync is gated behind the `KAGGLE_SYNC` variable
    and is best-effort, not a guaranteed mirror. A valid signature authenticates "produced
    by the key holder", not collection permission or review status.
-6. Partition larger tables by collection month; add selective-download tooling and only
-   then assess a static DuckDB-Wasm browser UI.
+6. ~~Partition larger tables by collection month; add selective-download tooling~~
+   Implemented: see `src/living_glossary/partition.py`, `glossary build-partitioned`, and
+   `glossary select-partitions`. Each partition is assigned by its linked observation's
+   month and is independently connectable; `index.json` lists row counts and checksums so
+   a client can fetch only the months it needs. A static DuckDB-Wasm browser UI is not
+   yet assessed and remains the one open item from this milestone.
 
 ## Acceptance criteria for this prototype
 

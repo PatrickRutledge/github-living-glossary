@@ -36,6 +36,14 @@ def main():
     verifier.add_argument(
         "--public-key", help="Base64 Ed25519 public key; defaults to $GLOSSARY_PUBLIC_KEY"
     )
+    partitioner = commands.add_parser("build-partitioned")
+    partitioner.add_argument("--source", type=Path, default=Path("data/sample"))
+    partitioner.add_argument("--output", type=Path, required=True)
+    selector = commands.add_parser("select-partitions")
+    selector.add_argument("--output", type=Path, required=True,
+                          help="Partitioned directory written by build-partitioned")
+    selector.add_argument("--months", nargs="+", required=True, help="e.g. 2026-01 2026-02")
+    selector.add_argument("--destination", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "build":
@@ -68,13 +76,21 @@ def main():
                 raise ValueError("Provide --private-key or set GLOSSARY_PRIVATE_KEY")
             path = sign_manifest(args.snapshot, private_key)
             print(f"Wrote signature to {path}")
-        else:
+        elif args.command == "verify-signature":
             from living_glossary.signing import verify_manifest
             public_key = args.public_key or os.environ.get("GLOSSARY_PUBLIC_KEY")
             if not public_key:
                 raise ValueError("Provide --public-key or set GLOSSARY_PUBLIC_KEY")
             verify_manifest(args.snapshot, public_key)
             print("Signature valid for this manifest.")
+        elif args.command == "build-partitioned":
+            from living_glossary.partition import build_partitioned
+            path = build_partitioned(args.source, args.output)
+            print(f"Wrote partition index to {path}")
+        else:
+            from living_glossary.partition import select_partitions
+            path = select_partitions(args.output, args.months, args.destination)
+            print(f"Merged {len(args.months)} partition(s) into {path}")
     except (ValueError, OSError, duckdb.Error) as error:
         parser.exit(1, f"Error: {error}\n")
 

@@ -129,10 +129,20 @@ def dataset_card(records: dict[str, list[dict]], version: str) -> dict:
 
 
 def build(source: Path, output: Path) -> Path:
-    if output.exists() and any(output.iterdir()):
-        raise ValueError("Snapshot output must be empty; use a new version directory")
     records = {name: load_records(source / f"{name}.jsonl") for name in SCHEMAS}
     validate(records)
+    return write_snapshot(records, output)
+
+
+def write_snapshot(records: dict[str, list[dict]], output: Path) -> Path:
+    """Write already-validated records as a Parquet snapshot with manifest and card.
+
+    Callers (such as `partition.build_partitioned`) that slice a larger validated
+    record set must not re-validate cross-table references against the slice alone:
+    a glossary row's `observation_id` may correctly point outside its own partition.
+    """
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("Snapshot output must be empty; use a new version directory")
     output.mkdir(parents=True, exist_ok=True)
     manifest = {
         "schema_version": SCHEMA_VERSION,
