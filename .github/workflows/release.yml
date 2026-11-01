@@ -39,7 +39,9 @@ jobs:
       - name: Collect approved sources
         if: vars.LIVE_COLLECTION == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # Same cross-repo PAT as build.yml; the default GITHUB_TOKEN only covers
+          # this one repository and cannot list or read others for owner_self.
+          GH_TOKEN: ${{ secrets.GLOSSARY_COLLECT_TOKEN }}
         run: python scripts/collect.py --output dist/collected
       - name: Build snapshot
         run: glossary build --source "${{ steps.source.outputs.path }}" --output dist/release
