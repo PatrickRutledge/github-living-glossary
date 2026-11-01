@@ -103,3 +103,62 @@ def test_incremental_new_edit_delete(tmp_path, monkeypatch):
     item = next(iter(state["sources"]["example/project"]["items"].values()))
     assert item["present"] is False
 
+
+def test_private_repo_requires_allow_private(tmp_path, monkeypatch):
+    config = tmp_path / "sources.json"
+    config.write_text(json.dumps({"sources": [{
+        "repo": "example/private-project", "since": "2026-01-01T00:00:00Z",
+        "permission": "Permission fixture",
+    }]}))
+    monkeypatch.setattr(collector, "request", lambda *args: {"private": True})
+    with pytest.raises(ValueError, match="allow_private"):
+        collector.collect(
+            config, tmp_path / "output", tmp_path / "state.json", tmp_path / "history.jsonl"
+        )
+
+
+def test_private_repo_allowed_with_flag(tmp_path, monkeypatch):
+    config = tmp_path / "sources.json"
+    config.write_text(json.dumps({"sources": [{
+        "repo": "example/private-project", "since": "2026-01-01T00:00:00Z",
+        "permission": "Permission fixture", "allow_private": True,
+    }]}))
+    monkeypatch.setattr(collector, "request", lambda *args: {"private": True})
+    monkeypatch.setattr(collector, "pages", lambda path, since: [])
+    output = tmp_path / "output"
+    collector.collect(config, output, tmp_path / "state.json", tmp_path / "history.jsonl")
+    assert (output / "observations.jsonl").exists()
+
+
+def test_discover_owner_repos_paginates(monkeypatch):
+    calls = []
+    def fake_request(path, params=None):
+        calls.append(params["page"])
+        if params["page"] == 1:
+            return [{"full_name": f"me/repo{i}"} for i in range(100)]
+        return [{"full_name": "me/repo100"}]
+    monkeypatch.setattr(collector, "request", fake_request)
+    repos = collector.discover_owner_repos()
+    assert repos == [f"me/repo{i}" for i in range(100)] + ["me/repo100"]
+    assert calls == [1, 2]
+
+
+def test_expand_sources_owner_self(monkeypatch):
+    monkeypatch.setattr(
+        collector, "discover_owner_repos", lambda: ["me/one", "me/two"]
+    )
+    sources = [{
+        "owner_self": True, "since": "2026-01-01T00:00:00Z", "permission": "Self-owned repos",
+    }]
+    expanded = collector.expand_sources(sources)
+    assert [s["repo"] for s in expanded] == ["me/one", "me/two"]
+    assert all(s["allow_private"] for s in expanded)
+    assert all(s["permission"] == "Self-owned repos" for s in expanded)
+
+
+def test_expand_sources_passthrough():
+    sources = [{
+        "repo": "owner/repo", "since": "2026-01-01T00:00:00Z", "permission": "fixture",
+    }]
+    assert collector.expand_sources(sources) == sources
+

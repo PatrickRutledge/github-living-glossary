@@ -117,13 +117,16 @@ never initialized.
 
 ## GitHub Actions
 
-The workflow runs tests and builds a snapshot on pushes, PRs, manual dispatch, and daily
-at 04:23 UTC. Scheduled execution can be delayed and disabled after repository inactivity.
-Snapshots are workflow artifacts retained for 30 days, **not a permanent archive**.
-Use the signed release workflow above, or download selected artifacts and preserve
-approved versions in releases or Kaggle yourself.
+The workflow runs tests and builds a snapshot on pushes, PRs, manual dispatch, and twice
+yearly (January and July). Scheduled execution can be delayed and disabled after
+repository inactivity. Snapshots are workflow artifacts retained for 30 days,
+**not a permanent archive**. Use the signed release workflow above, or download
+selected artifacts and preserve approved versions in releases or Kaggle yourself.
 
-Live collection is disabled. To enable it:
+Live collection is disabled by default. To enable it for repositories you do not own,
+follow the numbered steps below. To collect your own repositories (including private
+ones), see "Collecting your own repositories" further down instead — it skips step 1
+since you already hold that authority over your own content.
 
 1. Obtain and document permission to redistribute issue bodies and comments, separately
    from the code license. Assess sensitive content and establish a removal process.
@@ -133,10 +136,12 @@ Live collection is disabled. To enable it:
 3. Set the repository Actions variable `LIVE_COLLECTION` to `true`.
 
 The collector reads current issue/PR bodies and issue comments updated since the configured
-date. It excludes private repos, stops on potential emails/common secrets, and labels
-languages `und` (undetermined). These screens are incomplete and **do not establish safe
-redistribution**. Review before publication. No usernames or inferred human authorship are
-stored. Bot account metadata means automation, not proof of AI generation.
+date. By default it refuses private repositories unless a source explicitly sets
+`"allow_private": true` (which the `owner_self` mode below does automatically). It stops
+on potential emails/common secrets and labels languages `und` (undetermined). These
+screens are incomplete and **do not establish safe redistribution**. Review before
+publication. No usernames or inferred human authorship are stored. Bot account metadata
+means automation, not proof of AI generation.
 
 It recollects a bounded window per source, not a historical archive scan: each run only
 queries items updated since the source's last recorded state in
@@ -148,6 +153,26 @@ must be retained separately and are not rewritten. Review comments, commits, ter
 and automated translation are not implemented. Collected snapshots initially have empty
 glossary and annotation tables; add reviewed JSONL contributions before building a research
 release.
+
+## Collecting your own repositories
+
+To pull every repository you own (public and private) instead of listing them one by
+one, use the `owner_self` source form in `config/sources.json`:
+
+```json
+{"sources": [{"owner_self": true, "since": "2020-01-01T00:00:00Z",
+              "permission": "Self-owned repositories; collected under my own authority."}]}
+```
+
+This expands at collection time to every repository returned by `GET /user/repos` for
+the token in use. Because the default `GITHUB_TOKEN` a workflow receives is scoped only
+to the repository it runs in, this mode requires a separate token with read access to
+your other repositories — generate a fine-grained personal access token and store it as
+the `GLOSSARY_COLLECT_TOKEN` repository secret; `build.yml` uses it automatically when
+present. `since` set to a repository's creation date (or earlier) collects its full
+existing issue/PR/comment history on the first run; later runs are incremental as
+described above. See [PERMISSIONS.md](PERMISSIONS.md) section "Collecting your own
+repositories" for the review responsibilities that still apply even to your own content.
 
 See [DESIGN.md](DESIGN.md) for the design, limits, and staged expansion.
 

@@ -51,6 +51,43 @@ def item_exists(repo: str, kind: str, item_id: str) -> bool:
         raise
 
 
+def discover_owner_repos() -> list[str]:
+    """List repositories owned by the authenticated token's account, public and private.
+
+    GitHub scopes `/user/repos?affiliation=owner` to the authenticated user; it cannot
+    be used to enumerate another account's private repositories. This is what makes
+    `owner_self` sources safe to mark `allow_private` automatically: the token's owner
+    is, by definition, the only person who can grant permission for their own repos.
+    """
+    repos = []
+    for page in range(1, 101):
+        rows = request("/user/repos", {
+            "affiliation": "owner", "per_page": 100, "page": page, "visibility": "all",
+        })
+        repos.extend(row["full_name"] for row in rows)
+        if len(rows) < 100:
+            break
+    else:
+        raise RuntimeError("Owner repository list exceeded 100 pages")
+    return repos
+
+
+def expand_sources(sources: list[dict]) -> list[dict]:
+    expanded = []
+    for source in sources:
+        if source.get("owner_self"):
+            for repo in discover_owner_repos():
+                expanded.append({
+                    "repo": repo,
+                    "since": source["since"],
+                    "permission": source["permission"],
+                    "allow_private": True,
+                })
+        else:
+            expanded.append(source)
+    return expanded
+
+
 def load_state(path: Path) -> dict:
     if path and path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
@@ -82,7 +119,7 @@ def collect(
     state_path: Path = Path("data/state/collection_state.json"),
     history_path: Path = Path("data/state/history.jsonl"),
 ):
-    sources = json.loads(config.read_text(encoding="utf-8"))["sources"]
+    sources = expand_sources(json.loads(config.read_text(encoding="utf-8"))["sources"])
     if not sources:
         raise ValueError("No permission-cleared sources configured; refusing live collection")
     if output.exists() and any(output.iterdir()):
@@ -98,8 +135,11 @@ def collect(
         permission = source["permission"]
         if not isinstance(permission, str) or not permission.strip():
             raise ValueError("Explicit redistribution permission is required")
-        if request(f"/repos/{repo}")["private"]:
-            raise ValueError("Private repository collection is disabled")
+        if request(f"/repos/{repo}")["private"] and not source.get("allow_private"):
+            raise ValueError(
+                f"{repo} is private; set \"allow_private\": true to collect it "
+                "(only appropriate for repositories you have authority over)"
+            )
         source_state = state["sources"].setdefault(
             repo, {"since": source["since"], "items": {}}
         )

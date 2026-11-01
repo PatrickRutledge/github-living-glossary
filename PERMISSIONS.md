@@ -45,11 +45,50 @@ Only after all four items are satisfied should an entry be added to
 Enabling collection additionally requires setting the repository Actions variable
 `LIVE_COLLECTION` to `true`; adding a source alone does not start collection.
 
+## 1a. Collecting your own repositories (including private ones)
+
+If you are the owner of the repositories to be collected, you already hold the
+authority described in "Who granted permission" above for your own content — there is
+no third party to separately ask. Use the `owner_self` source form instead of listing
+each repository:
+
+```json
+{
+  "sources": [
+    {
+      "owner_self": true,
+      "since": "2020-01-01T00:00:00Z",
+      "permission": "Self-owned repositories; collected by the account owner under their own authority."
+    }
+  ]
+}
+```
+
+This expands at collection time to every repository returned by `GET /user/repos` for
+the token used (public and private), with `allow_private` set automatically — the
+token's owner is, by construction, the only person who can grant that permission.
+This mode still requires:
+
+- A token with read access to those repositories (a fine-grained PAT, not the
+  workflow-scoped default `GITHUB_TOKEN`, since that token cannot read other
+  repositories). Store it as the `GLOSSARY_COLLECT_TOKEN` secret.
+- The sensitivity review in Section 1 — still your responsibility to do once over a
+  representative sample, since the automated `SENSITIVE` regex is a safety net, not
+  a guarantee, and private repositories may contain material you did not intend to
+  make even locally structured, let alone published.
+- Setting `LIVE_COLLECTION` to `true`; this does not by itself publish anything —
+  review the separate publication steps in `DESIGN.md` before releasing a snapshot
+  built from private-repository text.
+
+Private-repository observations are not automatically excluded from a public release;
+decide and document whether a given snapshot is for local/private use only or intended
+for publication before running the signed-release workflow.
+
 ## 2. Ongoing responsibilities
 
 - Re-confirm permission if the source repository changes ownership, is archived,
   or the approving maintainer steps down.
-- Treat each collection run as replacing current text, not an archive: edits
+
   overwrite prior values in the next run, and deleted source items disappear from
   future collections. Previously published, versioned snapshots are not
   retroactively altered by a later run; removal requests against already-published

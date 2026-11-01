@@ -4,7 +4,9 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    - cron: "23 4 * * *"
+    # Twice yearly; live collection also requires LIVE_COLLECTION=true and a
+    # GLOSSARY_COLLECT_TOKEN secret (see README.md "Collecting your own repositories").
+    - cron: "23 4 1 1,7 *"
 
 permissions:
   contents: write
@@ -27,7 +29,10 @@ jobs:
       - name: Collect approved sources
         if: github.event_name != 'pull_request' && vars.LIVE_COLLECTION == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          # A fine-grained PAT with access to the repos being collected (including
+          # private ones for an owner_self source); the default GITHUB_TOKEN only
+          # covers this one repository and cannot list or read the others.
+          GH_TOKEN: ${{ secrets.GLOSSARY_COLLECT_TOKEN }}
         run: python scripts/collect.py --output dist/collected
       - name: Build snapshot
         env:

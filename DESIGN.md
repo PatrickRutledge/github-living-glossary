@@ -87,6 +87,13 @@ claimed. Retry using a new output directory; stable source IDs deduplicate one b
 Only versioned snapshots reproduce an observation set; the state/history files describe
 how a snapshot's contents changed over time, not a browsable archive of removed text.
 
+An `owner_self` source (see PERMISSIONS.md) expands to every repository `GET /user/repos`
+returns for the configured token, including private ones, with `allow_private` implied.
+This is the only case where private-repository collection is permitted, on the premise
+that an account owner already holds authority over their own repositories; it still
+requires a token scoped beyond the workflow's default `GITHUB_TOKEN` and still goes
+through the same sensitive-text screen and page cap as any other source.
+
 Local query connections disable external file/network access after loading the chosen
 tables and accept one SELECT statement. The UI is a trusted-user local research tool,
 not a hardened public multi-tenant SQL service. SQL may still consume CPU and memory;
