@@ -25,6 +25,10 @@ def main():
     miner.add_argument("--output", type=Path, required=True)
     miner.add_argument("--min-frequency", type=int, default=2)
     miner.add_argument("--limit", type=int, default=100)
+    renderer = commands.add_parser("render")
+    renderer.add_argument("--snapshot", type=Path, required=True)
+    renderer.add_argument("--output", type=Path, required=True)
+    renderer.add_argument("--title", default="Living Glossary")
     commands.add_parser("generate-keypair")
     signer = commands.add_parser("sign")
     signer.add_argument("--snapshot", type=Path, required=True)
@@ -63,6 +67,11 @@ def main():
                     f"Wrote {len(candidates)} unreviewed term candidates to {path}. "
                     "Review before adding to any glossary.jsonl."
                 )
+        elif args.command == "render":
+            from living_glossary.render import render
+            with connect(args.snapshot) as connection:
+                path = render(connection, args.output, title=args.title)
+                print(f"Wrote reviewed glossary page to {path}")
         elif args.command == "generate-keypair":
             from living_glossary.signing import generate_keypair
             private_key, public_key = generate_keypair()

@@ -46,6 +46,9 @@ jobs:
           name: parquet-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist/snapshot/
           retention-days: 30
+      - name: Render reviewed glossary page
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: glossary render --snapshot dist/snapshot --output docs/glossary.md
       - name: Persist collection state and history
         if: github.event_name != 'pull_request' && vars.LIVE_COLLECTION == 'true'
         run: |
@@ -54,5 +57,15 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add data/state
             git commit -m "Update collection state and history [skip ci]"
+            git push
+          fi
+      - name: Publish rendered glossary page
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          if git status --porcelain docs/glossary.md | grep -q .; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/glossary.md
+            git commit -m "Update rendered glossary page [skip ci]"
             git push
           fi

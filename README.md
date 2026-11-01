@@ -46,6 +46,22 @@ separate file, never merged into `glossary.jsonl` automatically. A human reviews
 candidates, assigns a sense/definition/translation, and copies approved entries into a
 source's `glossary.jsonl` before the next `glossary build`.
 
+## Publishing a browsable glossary page
+
+`glossary render --snapshot dist/sample --output docs/glossary.md` reads a snapshot's
+`glossary` table and writes a static Markdown page listing only entries with
+`status: reviewed` (unreviewed and disputed entries are never published). Each row links
+back to its supporting `observation_id` and names its `reviewer_id`, so a reader can trace
+every definition to the evidence and person behind it.
+
+On every successful build on `main`, the workflow re-renders `docs/glossary.md` from the
+snapshot just built and commits it back (`[skip ci]`), so the page always reflects the
+latest reviewed entries. To serve it as a website: repository Settings -> Pages -> Build
+and deployment -> Source: "Deploy from a branch" -> Branch: `main`, folder `/docs`. GitHub
+Pages then serves `docs/index.md` and `docs/glossary.md` at
+`https://<owner>.github.io/<repo>/`. This is a one-time manual setting; the workflow does
+not and cannot change repository settings on your behalf.
+
 ## Data and reproducibility
 
 Three linked Parquet tables: `observations`, `glossary`, and `annotations`. JSONL inputs
